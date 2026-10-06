@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .pipeline import analyze, inspect_video
 from .search import parse_query, search_index
 from .vision import Detector, SemanticEncoder
+from .workspace import install_workspace
 
 ROOT = Path(os.getenv("MOTIONLAB_HOME", ".")).resolve()
 STATIC = Path(__file__).parent / "static"
@@ -140,7 +141,7 @@ def create_app(root: Path = ROOT):
         yield
         store.pool.shutdown(wait=True)
 
-    app = FastAPI(title="MotionLab", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="MotionLab", version="0.2.0", lifespan=lifespan)
     app.state.store = store
 
     @app.middleware("http")
@@ -158,7 +159,7 @@ def create_app(root: Path = ROOT):
     def health():
         return {
             "status": "ok",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "detector_available": (root / "models/yolox_s.onnx").exists(),
             "demo_available": (root / "data/demo.mp4").exists(),
         }
@@ -249,7 +250,8 @@ def create_app(root: Path = ROOT):
     def asset(job_id: str, name: str):
         store.get(job_id)
         if not re.fullmatch(
-            r"(?:video\.mp4|track-\d+\.jpg|scene-\d+\.jpg|clip-\d+-\d+\.mp4)", name
+            r"(?:video\.mp4|(?:track|crop)-\d+\.jpg|scene-\d+\.jpg|saved-[a-f0-9]{32}\.jpg|clip-\d+-\d+\.mp4)",
+            name,
         ):
             raise HTTPException(404, "File not found.")
         path = store.runs / job_id / name
@@ -320,6 +322,7 @@ def create_app(root: Path = ROOT):
             temporary.unlink(missing_ok=True)
             store.exports.release()
 
+    install_workspace(app, store)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     return app
 

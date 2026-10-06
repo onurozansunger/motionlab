@@ -11,3 +11,4 @@ runs/
 models/*.onnx
 models/*.part
 dist/
+workspace.sqlite*

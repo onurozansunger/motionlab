@@ -135,6 +135,7 @@ def search_index(
     encoder,
     start: float = 0,
     end: float | None = None,
+    query_vector: np.ndarray | None = None,
 ) -> dict:
     end = index["duration"] if end is None else min(end, index["duration"])
     classes, colors, simple = parse_query(query)
@@ -172,7 +173,8 @@ def search_index(
             "note": "Detected object and approximate color match. Track IDs apply only within this video.",
         }
 
-    query_vector = encoder.encode(text=query)[0]
+    if query_vector is None:
+        query_vector = encoder.encode(text=query)[0]
     scores = vectors @ query_vector
     candidates = [i for i, sample in enumerate(index["samples"]) if start <= sample["time"] <= end]
     candidates.sort(key=lambda i: -float(scores[i]))

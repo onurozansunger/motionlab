@@ -15,7 +15,7 @@
       <a class="brand" href="/" aria-label="MotionLab home"
         ><span class="mark"><i></i><i></i><i></i></span>MotionLab<span
           class="version"
-          >0.1</span
+          >0.2</span
         ></a
       >
       <div class="top-right">
@@ -30,6 +30,9 @@
           <h1>Video memory</h1>
         </div>
         <div class="source-actions">
+          <button id="open-board" class="button secondary">
+            Review board <span id="board-count">0</span>
+          </button>
           <button id="demo" class="button secondary">Sample video</button
           ><label class="button primary upload-label" for="upload"
             ><span>＋</span> Upload video</label
@@ -42,6 +45,14 @@
             <h2>Search</h2>
             <span class="keycap">⌘ K</span>
           </div>
+          <div class="scope-control">
+            <label for="search-scope">Search in</label
+            ><select id="search-scope">
+              <option value="video">Current video</option>
+              <option value="library">All videos</option>
+            </select>
+          </div>
+          <div id="visual-reference" class="visual-reference" hidden></div>
           <form id="search-form">
             <label for="query" class="sr-only">Search this video</label>
             <div class="search-field">
@@ -129,7 +140,9 @@
               </div>
             </div>
             <div class="playback-meta">
-              <span id="timestamp" class="mono">00:00 / 00:00</span
+              <button id="save-current" class="save-current" disabled>
+                ＋ Save this moment</button
+              ><span id="timestamp" class="mono">00:00 / 00:00</span
               ><label class="toggle"
                 ><input type="checkbox" id="show-boxes" checked /> Object
                 overlays</label
@@ -200,6 +213,28 @@
         ><span>YOLOX · ByteTrack · SigLIP 2</span>
       </footer>
     </main>
+    <div id="board-overlay" class="board-overlay" hidden>
+      <section
+        id="board-drawer"
+        class="board-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="board-title"
+      >
+        <div class="board-header">
+          <div>
+            <div class="eyebrow">WORKSPACE / REVIEW</div>
+            <h2 id="board-title">Review board</h2>
+          </div>
+          <button id="close-board" aria-label="Close review board">×</button>
+        </div>
+        <div class="board-toolbar">
+          <span id="board-summary">No saved moments</span
+          ><a id="board-export" href="/api/board-export">Export report ↗</a>
+        </div>
+        <div id="board-moments"></div>
+      </section>
+    </div>
     <div id="toast" role="status" hidden></div>
     <script src="/static/app.js"></script>
   </body>

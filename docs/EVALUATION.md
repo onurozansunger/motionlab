@@ -1,12 +1,14 @@
 # Evaluation plan
 
-Version 0.1 is a working application, not a completed research benchmark. No accuracy figure should be placed on a CV until the following evaluation has been run.
+Version 0.2 is a working application, not a completed research benchmark. No accuracy figure should be placed on a CV until the following evaluation has been run.
 
-## Separate three questions
+## Separate four questions
 
 1. **Detection and tracking:** Are the boxes and object identities correct? Measure detection AP, IDF1 / HOTA, identity switches, and fragmentation on a dataset with compatible annotations.
 2. **Moment retrieval:** Does a natural-language query retrieve its labeled time interval? Measure Recall@K at temporal IoU thresholds, plus negative-query behavior.
 3. **Object attributes:** Are the color filters correct? Manually annotate a fixed development/test subset and report per-color precision and recall, with an explicit ambiguous category.
+
+4. **Appearance retrieval:** Does an example crop retrieve visually relevant tracks in other clips? Annotate relevance independently of identity, exclude duplicate source footage, and measure Recall@K / mAP with single-crop and multi-crop baselines.
 
 Keep whole videos and near-duplicate scenes in one split. Choose sampling rates, thresholds, and models on development data; freeze them before final test evaluation. Report unknown or unsupported categories separately. Do not interpret detector confidence or cosine similarity as calibrated accuracy.
 
@@ -20,4 +22,4 @@ Keep whole videos and near-duplicate scenes in one split. Choose sampling rates,
 
 ## Planned extensions
 
-Image-example search, annotated temporal retrieval, scene-aware event detection, and a reproducible benchmark report. Plate OCR and vehicle make/model estimation are separate optional tasks, not existing functionality.
+Annotated temporal retrieval, scene-aware event detection, external image-example uploads, and a reproducible benchmark report. Track-example appearance search is implemented; its relevance has not yet been benchmarked. Plate OCR and vehicle make/model estimation are separate optional tasks, not existing functionality.

@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "type": "Functional smoke test; not an accuracy benchmark",
+  "unit_integration_tests": 31,
+  "library_videos": 3,
+  "checks": {
+    "real_SigLIP_object_crop_search": "passed; 4 appearance intervals returned across 3 indexed clips",
+    "cross_video_result_navigation": "passed; selecting later-sequence match opened its video and matching interval",
+    "reference_track_excluded": "passed",
+    "review_title_and_note_editing": "passed through browser",
+    "review_persistence_after_server_restart": "passed through browser",
+    "reopen_saved_source_moment": "passed through browser",
+    "HTML_report_browser_download": "passed",
+    "HTML_report_embedded_image_note_and_source_link": "passed",
+    "report_source_deep_link": "passed; correct source opened at 2.2 seconds",
+    "lint_format_and_JS_syntax": "passed",
+    "wheel_and_source_distribution": "built successfully"
+  },
+  "limitations": "Demo clips come from one road recording; two indexes contain duplicate footage. This verifies product behavior only, not cross-camera identity or retrieval accuracy. Visual similarity is not identity verification."
+}
