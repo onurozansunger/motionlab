@@ -12,3 +12,4 @@ models/*.onnx
 models/*.part
 dist/
 workspace.sqlite*
+.motionlab-data/

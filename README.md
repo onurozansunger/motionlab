@@ -1,123 +1,325 @@
+<div align="center">
+
 # MotionLab
 
-Search your video library, follow visual matches, and collect source-linked moments.
+**A local video search and review workspace**
 
-MotionLab is a local video workspace with object tracking, approximate color filters, multilingual scene retrieval, visual object search, and a persistent review board. The interface and documentation are in English; both English and Turkish object queries are supported.
+Search by text or object appearance. Open the matching moment. Keep a review trail.
 
-![MotionLab workspace](reports/workspace-v2.png)
+[![Checks](https://github.com/onurozansunger/motionlab/actions/workflows/checks.yml/badge.svg)](https://github.com/onurozansunger/motionlab/actions/workflows/checks.yml)
+[![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.2.0-AD754B)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-68735D)](LICENSE)
 
-## What works
+[Quick start](#quick-start) · [Product walkthrough](#product-walkthrough) · [Architecture](#architecture) · [API](#api) · [Verification](#verification)
 
-- Upload a video or open the included sample.
-- Search for an object and color, such as **blue car** or **white truck**.
-- Search for a scene description using multilingual SigLIP 2 embeddings.
-- Search the current video or all indexed videos, with source names on every result.
-- Select an object and use **Find similar objects** to compare its appearance across clips.
-- Save results or arbitrary playback moments to the **Review board**, edit titles and notes, and reopen their source timestamps.
-- Export a standalone HTML review report with embedded frames, notes, source links, and video hashes.
-- Click a result to open its source video and play from the matching interval.
-- Inspect matching intervals on the timeline and tracked objects directly on the video.
-- Download a contextual video clip or export observations as JSON / CSV.
-- Reopen previously indexed videos after restarting the app.
+</div>
 
-Object results and scene suggestions are labeled separately. A scene similarity score is not a calibrated probability or proof that an event happened.
+![MotionLab: visual search across a video library, timestamped results, object overlays and inspection](reports/workspace-v2.png)
 
-## Run locally
+MotionLab turns short videos into a searchable collection of object tracks and scene representations. Results retain their source video and time interval, so you can move from a query to the relevant frame, inspect it, save a note, or export a clip.
 
-Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/).
+The project combines pretrained computer vision models with custom indexing, retrieval, playback, and review workflows. **No neural model was trained or fine-tuned for this release.** The engineering contribution is the application around inference: three retrieval paths, temporal grounding, cached track representations, source-aware navigation, and persistent review records.
+
+## At a glance
+
+| Capability | What you can do |
+| --- | --- |
+| Object and color search | Find detected tracks with queries such as `blue car`, `white truck`, or `mavi araba`. |
+| Scene search | Retrieve sampled scenes using a free-form description such as `a highway with cars`. |
+| Visual object search | Select an object and rank tracks with similar appearance in the current video or the whole library. |
+| Timestamped playback | Click a result to open its source video and play from the matching interval. |
+| Object inspection | Inspect boxes, track paths, approximate colors, observations, and matching intervals. |
+| Review board | Save moments, edit titles and notes, and return to the original timestamp after restarting. |
+| Exports | Download MP4 clips, JSON indexes, CSV observations, or an HTML review report with embedded frames. |
+| Local inference | Run on CPU without an API key or paid inference endpoint. |
+
+The interface is in English. Object-query aliases include English and Turkish; scene retrieval uses a multilingual encoder. Text support is not a claim of equal retrieval quality across languages.
+
+## Quick start
+
+**Requirements:** Python 3.12 or 3.13, [uv](https://docs.astral.sh/uv/getting-started/installation/), and Git. The Makefile commands below also require `make`. Python 3.12 is used in CI. No GPU is required.
 
 ```bash
+git clone https://github.com/onurozansunger/motionlab.git
+cd motionlab
 make demo
 ```
 
-Open **http://127.0.0.1:8002** and choose **Sample video**. Initial setup downloads the detector, semantic encoder, and example footage. No API key or paid inference service is required. Subsequent starts:
+Open **[localhost:8002](http://127.0.0.1:8002)** and select **Sample video** to index the downloaded footage. `make demo` installs the locked dependencies, downloads the models and sample, and starts the server. The first run needs an internet connection and time for the downloads.
+
+For later starts:
 
 ```bash
 make serve
 ```
 
-To use only your own videos:
+To work with your own videos instead:
 
 ```bash
 make setup
 make serve
 ```
 
-The application accepts videos up to **90 seconds, 200 MB, 4K and 120 FPS**. Playback is normalized to H.264 at 25 FPS with a maximum width of 1280 pixels. Object analysis runs at 5 FPS; semantic scene sampling runs at 1 FPS. Normalized playback and exported clips are silent in this version.
+<details>
+<summary><strong>Equivalent commands without make</strong></summary>
 
-## How search works
-
-```mermaid
-flowchart LR
-    V[Video] --> N[Normalize and sample]
-    N --> D[YOLOX-S detections]
-    D --> T[ByteTrack tracks]
-    T --> C[Color estimates and observations]
-    T --> O[Multi-frame object crop embeddings]
-    N --> E[SigLIP 2 scene embeddings]
-    Q[Query] --> F{Query type}
-    F -->|Object + color| C
-    F -->|Scene description| E
-    C --> R[Timestamped results]
-    E --> R
-    O --> R
-    R --> P[Seek, highlight, export clip]
-    P --> B[Review board and source-linked report]
+```bash
+uv sync --locked --no-editable --python 3.12
+uv run --no-editable motionlab setup
+uv run --no-editable motionlab demo-video
+uv run --no-editable motionlab serve
 ```
 
-Simple recognized object/color queries filter actual tracks. Free-form queries retrieve visually similar sampled scenes. Object intervals split when observations have a gap longer than 0.8 seconds; UI interpolation only spans neighboring observations up to 0.45 seconds apart. Scene suggestions use short windows around sampled frames and temporal suppression to avoid near-duplicate results.
+Skip `demo-video` if you do not need the sample. FFmpeg is accessed through `imageio-ffmpeg`; the application does not require a separate system FFmpeg installation.
 
-### Appearance search and review workflow
+</details>
 
-Choose **All videos**, select a tracked object, then choose **Find similar objects**. MotionLab encodes up to three time-spread crops per track, normalizes their mean embedding, and ranks same-category tracks by cosine similarity. The reference track is excluded. Crop embeddings are cached locally and invalidated when the source index or model revision changes. This compares appearance; it does not establish that two tracks show the same physical object.
+<details>
+<summary><strong>Port, storage, and model cache</strong></summary>
 
-Save a result with **Save to board**, or use **Save this moment** below the player. Notes and titles autosave to SQLite and survive restarts. The report embeds its images, so it can be read offline; source links reopen the local app at the saved timestamp and require that app and its source files to be available.
+Use another local port:
 
-![Review board](reports/review-board.png)
+```bash
+uv run --no-editable motionlab serve --port 8003
+```
 
-## Models and reproducibility
+`MOTIONLAB_HOME` sets the directory for detector weights, sample media, indexes, and the review database. It defaults to the working directory. Use the same value for setup and serving:
 
-- **YOLOX-S:** official ONNX release, COCO classes, checksum verified before use.
-- **ByteTrack:** two-stage association through the `trackers` library.
-- **SigLIP 2:** `google/siglip2-base-patch16-224`, revision pinned in source.
-- **Color:** an HSV crop heuristic aggregated over a track; no color model was trained.
+```bash
+export MOTIONLAB_HOME="$PWD/.motionlab-data"
+uv run --no-editable motionlab setup
+uv run --no-editable motionlab serve
+```
 
-All neural weights are pretrained. This release does **not** claim detector fine-tuning, benchmark superiority, verified activity recognition, or real-world identity recognition. Each index records the video hash, detector hash, semantic revision, sampling rates, observations, and processing time. Dependencies are locked in `uv.lock`.
+SigLIP 2 uses the Hugging Face cache, which is separate from `MOTIONLAB_HOME`. Initial setup fetches model files from GitHub and Hugging Face; the optional sample comes from Roboflow. Inference runs locally. Keep the model cache available for subsequent starts.
+
+</details>
+
+## Product walkthrough
+
+1. **Index a clip.** Upload a video or choose the sample. The workspace shows progress as it normalizes frames and indexes objects and scenes.
+2. **Search with text.** Try `blue car` for track-based results, then `a highway with cars` for semantic scene suggestions. Set **Search in → All videos** to search the library.
+3. **Search from an object.** Select a track and choose **Find similar objects**. The reference crop appears above the results; each match includes its source filename.
+4. **Review the source.** Select a result to open its video at the matching interval. Inspect the object and timeline, or prepare a contextual clip for download.
+5. **Keep the useful moments.** Use **Save to board** on a result or **Save this moment** beneath the player. Add a title and review note.
+6. **Export the review.** Open **Review board → Export report** to download one HTML file containing snapshots, notes, intervals, source links, and video hashes.
+
+![MotionLab review board: a saved frame with an editable title, persistent note and source navigation](reports/review-board.png)
+
+The report can be read offline because snapshots are embedded. Its source links require the local app to be running at the linked address with the corresponding indexed videos available. Track IDs belong to individual videos; they do not identify an object across cameras.
+
+## Three retrieval paths
+
+| Mode | Input | Matching method | Interpretation |
+| --- | --- | --- | --- |
+| **Object** | Recognized class/color query | Filters detected tracks and groups observations into intervals | A detector-backed class and approximate color match |
+| **Semantic** | Free-form scene description | Text-to-frame cosine similarity using SigLIP 2 | A visually related scene suggestion; no grounded object box |
+| **Visual** | Selected tracked object | Track-to-track cosine similarity from aggregated crop embeddings | Similar appearance, not verified identity |
+
+### Object search
+
+Recognized object/color aliases route to structured filters. Observation gaps longer than **0.8 seconds** split a track into separate result intervals. Playback overlays interpolate only between nearby observations, up to **0.45 seconds** apart, to avoid drawing continuous motion across longer gaps.
+
+Queries outside the recognized filter vocabulary route to semantic retrieval. The detector's 80 COCO classes and the structured query vocabulary are not identical; not every multiword class name has a structured alias.
+
+### Scene search
+
+The application samples full frames at **1 FPS**, computes normalized image embeddings, and compares them with the query embedding. Library search encodes the text once and reuses it across videos. Temporal suppression reduces adjacent scene suggestions.
+
+Similarity scores are not probabilities. A result for a detailed description does not verify that every stated attribute or action occurred. Semantic search can return suggestions even when no scene satisfies the query.
+
+### Visual search
+
+For each track, MotionLab selects up to **three confidence-based, time-spread crops**. It encodes the crops, averages their embeddings, and normalizes the resulting vector. The UI ranks tracks of the same detected category and excludes the reference track itself.
+
+Crop vectors are built on demand and cached. A fingerprint of the video hash, track data, model identifier, revision, and cache schema determines whether they can be reused. This adds appearance search to existing indexes without re-running detection.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Video upload] --> B[Validate and normalize]
+    B --> C[Sample frames]
+    C --> D[YOLOX-S / ONNX Runtime]
+    D --> E[ByteTrack associations]
+    E --> F[Track intervals and color estimates]
+    E --> G[Time-spread object crops]
+    C --> H[Scene frames at 1 FPS]
+    G --> I[SigLIP 2 crop embeddings]
+    H --> J[SigLIP 2 scene embeddings]
+    Q[Text query] --> R{Query router}
+    R -->|Recognized object / color| F
+    R -->|Scene description| J
+    X[Selected object] --> I
+    F --> K[Source-linked results]
+    I --> K
+    J --> K
+    K --> L[Player, overlays and timeline]
+    L --> M[Review board / SQLite]
+    L --> N[MP4, JSON and CSV exports]
+    M --> O[Standalone HTML report]
+```
+
+| Layer | Implementation |
+| --- | --- |
+| Inference | YOLOX-S through ONNX Runtime; SigLIP 2 through Transformers / PyTorch; CPU execution |
+| Tracking and attributes | ByteTrack via `trackers`; HSV crop-color heuristics aggregated over a track |
+| Indexing | OpenCV frame processing, FFmpeg normalization, JSON metadata, NumPy embedding arrays |
+| Retrieval | Structured filters and exact cosine ranking over locally stored embeddings |
+| Service | FastAPI, one background indexing worker, bounded indexing/export concurrency |
+| Review storage | SQLite metadata and per-video snapshot files |
+| Interface | Vanilla JavaScript, HTML/CSS, native video playback, canvas overlays |
+| Reproducibility | Locked dependencies, pinned model revision, detector checksum, index provenance |
+
+### Model provenance
+
+| Component | Configuration |
+| --- | --- |
+| Detector | Official YOLOX-S ONNX release; 640 × 640 input; 80 COCO classes |
+| Detector integrity | SHA-256 verified at setup and model load |
+| Embedding model | `google/siglip2-base-patch16-224` |
+| Embedding revision | `75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2` |
+| Color estimation | HSV heuristic, not a trained attribute model |
+
+Each index records the normalized video's hash, detector hash, semantic model revision, sampling rates, observations, and processing time. The hash identifies the normalized analysis video, not the original uploaded file. See [model implementation](src/motionlab/vision.py) and [pipeline](src/motionlab/pipeline.py).
 
 ## API
 
+Interactive documentation is available at **[localhost:8002/docs](http://127.0.0.1:8002/docs)** while the server is running.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| POST | `/api/videos` | Upload a video as multipart `file` |
-| POST | `/api/demo` | Index the local sample |
-| GET | `/api/videos/{id}` | Processing status |
-| GET | `/api/videos/{id}/search?q=blue%20car` | Search with optional `start` and `end` in seconds |
-| GET | `/api/search?q=blue%20car&scope=library` | Search across ready videos; use `scope=video&video_id=…` for one source |
-| POST | `/api/similar` | Appearance search from JSON `{ "video_id": "…", "track_id": 3, "scope": "library" }` |
-| GET / POST | `/api/board` | List or save reviewed moments |
-| PATCH / DELETE | `/api/board/{id}` | Edit notes and titles, or remove a moment |
-| GET | `/api/board-export` | Download the standalone HTML report |
-| GET | `/api/videos/{id}/index` | Tracks and observations |
-| POST | `/api/videos/{id}/clip` | Prepare a clip and return its download URL from JSON `{ "start": 1, "end": 4 }` |
-| GET | `/api/videos/{id}/export/{json\|csv}` | Export the index or observations |
+| `GET` | `/health` | Service version and detector/sample file availability |
+| `POST` | `/api/videos` | Upload a video as multipart field `file`; returns a job with HTTP 202 |
+| `GET` | `/api/videos` | List video jobs |
+| `GET` | `/api/videos/{id}` | Read indexing progress or ready/error status |
+| `POST` | `/api/demo` | Index the installed sample |
+| `GET` | `/api/search` | Text search with `q`, `scope`, optional `video_id`, `start`, and `end` |
+| `POST` | `/api/similar` | Appearance search using a video ID and track ID |
+| `GET` | `/api/videos/{id}/index` | Read tracks and observations |
+| `GET` | `/api/videos/{id}/search` | Search a single video |
+| `POST` | `/api/videos/{id}/clip` | Prepare an MP4 and return its download URL |
+| `GET` | `/api/videos/{id}/export/{format}` | Export `json` or `csv` |
+| `GET` / `POST` | `/api/board` | List or save moments |
+| `PATCH` / `DELETE` | `/api/board/{id}` | Edit a title/note or remove a saved moment |
+| `GET` | `/api/board-export` | Download the HTML report |
 
-Interactive API reference: `/docs`. The server binds to loopback only. Videos, indexes, and downloads stay on the local machine. Initial model/sample setup accesses the original download hosts.
+<details>
+<summary><strong>Example requests</strong></summary>
 
-## Verification and next experiments
+Upload a clip, then use the returned `id` to poll its status until `ready`:
+
+```bash
+curl -F 'file=@/path/to/clip.mp4' http://127.0.0.1:8002/api/videos
+curl http://127.0.0.1:8002/api/videos/VIDEO_ID
+```
+
+Search all ready videos:
+
+```bash
+curl --get http://127.0.0.1:8002/api/search \
+  --data-urlencode 'q=blue car' \
+  --data-urlencode 'scope=library'
+```
+
+Find visually similar tracks. Replace `VIDEO_ID` and the example track ID with values from your index:
+
+```bash
+curl http://127.0.0.1:8002/api/similar \
+  -H 'Content-Type: application/json' \
+  -d '{"video_id":"VIDEO_ID","track_id":3,"scope":"library","same_class":true}'
+```
+
+Prepare a clip, with start/end measured in seconds:
+
+```bash
+curl http://127.0.0.1:8002/api/videos/VIDEO_ID/clip \
+  -H 'Content-Type: application/json' \
+  -d '{"start":1,"end":4}'
+```
+
+The clip endpoint returns JSON containing a download URL; it does not return MP4 bytes directly. A second upload while indexing is in progress receives HTTP 429. Invalid video inputs are rejected before indexing.
+
+</details>
+
+## Verification
 
 ```bash
 make check
 uv build
 ```
 
-Tests cover query routing, color estimation, interval grouping, time filters, input validation, queue saturation, output access, and the video processing pipeline with deterministic model doubles. The current local run passed 31 tests, including cross-video source attribution, single-encoding library queries, crop cache reuse, reference exclusion, review persistence, input validation, and escaped report content. The [initial smoke report](reports/smoke.json) records real model inference, video upload, multilingual queries, and clip export; the [workspace smoke report](reports/workspace-smoke.json) records the added review workflow. These are functional checks, **not retrieval or tracking accuracy measurements**. See [evaluation plan](docs/EVALUATION.md) for the next research milestone.
+`make check` runs Ruff linting, formatting checks, pytest, and JavaScript syntax validation. Node.js is needed for the syntax check, not to run the application. GitHub Actions runs these checks and builds the Python package on Ubuntu with Python 3.12.
 
-## Limits
+| Evidence | Recorded result | Scope |
+| --- | --- | --- |
+| Automated tests | **31 passed** in the recorded local run | Query routing, temporal grouping, validation, pipeline behavior, cache reuse, reference exclusion, persistence, report escaping |
+| Original application smoke test | [Report](reports/smoke.json) | Real inference, upload, English/Turkish queries, negative object query, clip download |
+| Workspace smoke test | [Report](reports/workspace-smoke.json) | Visual retrieval, source switching, note persistence after restart, HTML download and timestamp links |
+| Packaging | Wheel and source distribution built | Installable Python package |
 
-The detector recognizes COCO object categories; custom objects can still be searched as scene suggestions, without grounded boxes. Small objects, occlusion, illumination, and viewpoint changes can break detection or tracking. Track IDs can fragment or switch. Approximate colors may reflect windows, shadows, or background pixels. One-second scene sampling can miss brief events. No action, license-plate, vehicle-model, face-identity, audio, or cross-video identity model is included.
+Automated inference-path tests use deterministic model doubles; the smoke reports separately document real-model checks. **These are functional results, not retrieval or tracking accuracy measurements.** The appearance-search demo uses related road clips, including duplicate footage, and cannot establish cross-camera retrieval performance.
 
-This is a single-user local application with one indexing job at a time, not a hardened public upload service. Uploaded data is stored under `runs/`; review metadata is stored in `workspace.sqlite`. Both are excluded from Git. Model weights and sample media are downloaded locally rather than bundled in source control.
+[The evaluation plan](docs/EVALUATION.md) defines detection/tracking, temporal retrieval, color, and appearance-retrieval experiments, including held-out video splits and ablations. No AP, HOTA, IDF1, Recall@K, or mAP result is claimed yet.
 
-## Attribution
+## Constraints and known failure modes
 
-[YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), [Trackers](https://github.com/roboflow/trackers), and [SigLIP 2](https://huggingface.co/google/siglip2-base-patch16-224) provide the pretrained inference components. The optional road footage is the [Roboflow Supervision sample video](https://supervision.roboflow.com/0.25.0/assets/), used for functional demonstration, not evaluation. See [NOTICE](NOTICE) for source and licensing details.
+| Area | Current behavior |
+| --- | --- |
+| Input | Up to 90 seconds, 200 MiB, 3840 × 2160 pixel area, and 120 FPS; MP4/MOV recommended |
+| Playback | Silent H.264, 25 FPS, maximum width 1280 pixels |
+| Analysis | Object analysis at 5 FPS; full-frame semantic sampling at 1 FPS |
+| Concurrency | One indexing job at a time; intended for a single-user local workspace |
+| Scale | Exact local ranking; no vector database or large-library latency benchmark |
+| Tracking | Occlusion, small objects, and viewpoint changes can fragment tracks or switch IDs |
+| Detection and color | False categories and boxes can occur; crop colors can include windows, shadows, or background |
+| Semantics | Brief events may be missed; scene similarity does not verify actions or identities |
+| Appearance search | Similar-looking objects may rank together; duplicate source footage can dominate results |
+
+License-plate OCR, vehicle make/model recognition, face identification, audio search, and verified cross-video identity are **not implemented**. The server binds to `127.0.0.1` and has no multi-user authentication or public upload-service hardening.
+
+### Local data
+
+The default workspace stores normalized videos and derived artifacts under `runs/`, detector weights under `models/`, optional sample footage under `data/`, and review metadata in `workspace.sqlite`. These paths are excluded from Git. The temporary uploaded source is removed after normalization; retain your originals separately. Back up `runs/` and `workspace.sqlite` together to preserve saved source moments.
+
+### Troubleshooting
+
+- **Models missing or checksum failure:** rerun `uv run --no-editable motionlab setup`. If an existing detector file fails validation, move it aside before running setup again so a clean copy can be downloaded.
+- **Sample unavailable:** run `uv run --no-editable motionlab demo-video` using the same `MOTIONLAB_HOME` as the server.
+- **Port already in use:** start with `--port 8003` and open that port in your browser.
+- **Processing interrupted:** an unfinished job is marked as an error after a restart; upload the clip again.
+- **Unexpected search results:** check the result mode. A free-form query produces scene suggestions; object/color aliases produce track filters.
+
+## Repository map
+
+```text
+src/motionlab/
+├── api.py              # HTTP endpoints, jobs, uploads, clip exports
+├── cli.py              # Setup, sample download, local server
+├── pipeline.py         # Validation, normalization, video indexing
+├── vision.py           # Pinned model loading, detection, embeddings, colors
+├── search.py           # Query routing and temporal retrieval
+├── workspace.py        # Visual search, crop cache, SQLite board, HTML report
+└── static/             # Browser interface, video controls and overlays
+tests/                  # Unit and integration tests
+docs/EVALUATION.md      # Evaluation design and planned ablations
+reports/                # Screenshots and recorded functional smoke results
+.github/workflows/      # Automated checks and package build
+```
+
+## Next experiments
+
+- [ ] Annotate a held-out video retrieval set with positive and negative queries.
+- [ ] Measure temporal Recall@K, appearance-retrieval mAP, and tracking quality.
+- [ ] Compare single-crop and multi-crop track representations.
+- [ ] Evaluate denser scene sampling against indexing cost and retrieval quality.
+- [ ] Investigate foreground-aware color estimation and external image-example queries.
+
+## License and attribution
+
+MotionLab application code is released under the [MIT license](LICENSE). Third-party models, libraries, and media retain their own terms; see [NOTICE](NOTICE).
+
+The pretrained components come from [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), [Trackers](https://github.com/roboflow/trackers), and [SigLIP 2](https://huggingface.co/google/siglip2-base-patch16-224). The optional road footage comes from the [Roboflow Supervision video examples](https://media.roboflow.com/supervision/video-examples/vehicles.mp4). Screenshots show this sample for demonstration; the video and model weights are not bundled in the repository.
+
+Built by [Onur Ozan Sünger](https://github.com/onurozansunger).

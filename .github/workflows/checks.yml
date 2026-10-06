@@ -10,6 +10,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.9.26'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: uv sync --locked --no-editable --python 3.12
       - run: make check
       - run: uv build
