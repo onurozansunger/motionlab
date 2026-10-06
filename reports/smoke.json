@@ -1,0 +1,32 @@
+{
+  "type": "functional smoke test; not an accuracy benchmark",
+  "upload": "passed",
+  "queries": {
+    "blue car": {
+      "mode": "object",
+      "result_count": 4
+    },
+    "white truck": {
+      "mode": "object",
+      "result_count": 2
+    },
+    "mavi araba": {
+      "mode": "object",
+      "result_count": 4
+    },
+    "a highway with cars": {
+      "mode": "semantic",
+      "result_count": 3
+    },
+    "red elephant": {
+      "mode": "object",
+      "result_count": 0
+    }
+  },
+  "negative_object_query": "passed",
+  "clip_export_and_browser_download": "passed",
+  "unit_integration_tests": 24,
+  "sample_duration_seconds": 11.96,
+  "sample_processing_seconds": 4.84,
+  "note": "Runtime is one warm local CPU run on sample footage, not a throughput benchmark."
+}

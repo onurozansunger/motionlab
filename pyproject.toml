@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "motionlab"
+version = "0.1.0"
+description = "Searchable video memory with grounded object tracks and timestamped results"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "python-multipart>=0.0.20",
+  "numpy>=2,<3", "opencv-python>=4.10,<5", "onnxruntime>=1.20,<2",
+  "trackers>=2,<3", "supervision>=0.28,<0.31", "imageio-ffmpeg>=0.6,<1",
+  "torch>=2.6,<3", "transformers>=4.51,<5", "sentencepiece>=0.2",
+]
+
+[project.scripts]
+motionlab = "motionlab.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.9,<1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.uv]
+cache-keys = [{file="pyproject.toml"}, {file="src/**/*.py"}, {file="src/motionlab/static/*"}]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

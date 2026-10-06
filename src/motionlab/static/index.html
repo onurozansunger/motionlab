@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MotionLab · Video memory</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%278%27 fill=%27%2330342f%27/%3E%3Cpath d=%27M10 29V12l10 12 10-12v17%27 stroke=%27%23dca27e%27 stroke-width=%273%27 fill=%27none%27/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MotionLab home"
+        ><span class="mark"><i></i><i></i><i></i></span>MotionLab<span
+          class="version"
+          >0.1</span
+        ></a
+      >
+      <div class="top-right">
+        <span class="local"><i></i>Local workspace</span
+        ><a href="/docs" target="_blank" rel="noreferrer">API ↗</a>
+      </div>
+    </header>
+    <main>
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">WORKSPACE / VIDEO</div>
+          <h1>Video memory</h1>
+        </div>
+        <div class="source-actions">
+          <button id="demo" class="button secondary">Sample video</button
+          ><label class="button primary upload-label" for="upload"
+            ><span>＋</span> Upload video</label
+          ><input type="file" id="upload" accept="video/*" hidden />
+        </div>
+      </div>
+      <div class="workspace">
+        <aside class="search-panel panel">
+          <div class="panel-title">
+            <h2>Search</h2>
+            <span class="keycap">⌘ K</span>
+          </div>
+          <form id="search-form">
+            <label for="query" class="sr-only">Search this video</label>
+            <div class="search-field">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m16 16 4 4" /></svg
+              ><input
+                id="query"
+                placeholder="Find an object or scene"
+                maxlength="300"
+                autocomplete="off"
+              /><button id="search-button" aria-label="Search" type="submit">
+                ↵
+              </button>
+            </div>
+          </form>
+          <div class="chips">
+            <button data-query="Blue car">Blue car</button
+            ><button data-query="White truck">White truck</button
+            ><button data-query="Highway">Highway</button>
+          </div>
+          <details class="time-filter">
+            <summary>Time range</summary>
+            <div>
+              <label
+                >Start (seconds)<input
+                  id="from"
+                  type="number"
+                  min="0"
+                  value="0"
+                  step="0.1" /></label
+              ><label
+                >End (seconds)<input
+                  id="to"
+                  type="number"
+                  min="0"
+                  placeholder="Until the end"
+                  step="0.1"
+              /></label>
+            </div>
+          </details>
+          <div class="results-heading">
+            <span id="result-count">RESULTS</span><span id="search-mode"></span>
+          </div>
+          <div id="results" class="results">
+            <div class="empty small">
+              <div class="empty-icon">⌕</div>
+              <strong>Find a moment</strong>
+              <p>Choose a video and search for an object or scene.</p>
+            </div>
+          </div>
+          <p id="search-note" class="search-note"></p>
+        </aside>
+        <section class="viewer-column">
+          <div class="viewer panel">
+            <div class="viewer-toolbar">
+              <div class="video-name">
+                <span class="file-icon">▣</span
+                ><label class="sr-only" for="video-select">Select video</label
+                ><select id="video-select">
+                  <option value="">No video selected</option>
+                </select>
+              </div>
+              <span id="video-resolution" class="mono">—</span>
+            </div>
+            <div id="stage" class="video-stage">
+              <video id="video" playsinline preload="metadata" controls></video
+              ><canvas
+                id="overlay"
+                aria-label="Tracked objects; click to inspect an object"
+              ></canvas>
+              <div id="video-empty" class="video-empty">
+                <div class="empty-frame"><span>▶</span></div>
+                <h2>Start with a video</h2>
+                <p>MP4 or MOV · up to 90 seconds / 200 MB</p>
+                <button id="empty-demo" class="button primary">
+                  Open sample video <span>↗</span>
+                </button>
+              </div>
+              <div id="processing" class="processing" hidden>
+                <div class="spinner"></div>
+                <h3 id="processing-stage">Preparing video</h3>
+                <div class="progress-track"><div id="progress-bar"></div></div>
+                <span id="progress-label" class="mono">0%</span>
+              </div>
+            </div>
+            <div class="playback-meta">
+              <span id="timestamp" class="mono">00:00 / 00:00</span
+              ><label class="toggle"
+                ><input type="checkbox" id="show-boxes" checked /> Object
+                overlays</label
+              >
+            </div>
+            <div class="timeline-area">
+              <div class="timeline-heading">
+                <span>MATCHING MOMENTS</span
+                ><span id="timeline-info">Search to reveal matches</span>
+              </div>
+              <div id="timeline" class="timeline">
+                <span id="playhead" class="playhead"></span>
+              </div>
+              <div class="timeline-scale">
+                <span>00:00</span><span id="timeline-mid">—</span
+                ><span id="timeline-end">—</span>
+              </div>
+            </div>
+          </div>
+          <div class="stats">
+            <div>
+              <span>DURATION</span><strong id="stat-duration">—</strong>
+            </div>
+            <div>
+              <span>OBJECT TRACKS</span><strong id="stat-tracks">—</strong>
+            </div>
+            <div>
+              <span>SCENE SAMPLES</span><strong id="stat-samples">—</strong>
+            </div>
+            <div>
+              <span>STATUS</span
+              ><strong id="stat-status" class="status-value"
+                >Awaiting video</strong
+              >
+            </div>
+          </div>
+          <div class="export-row">
+            <span>Track IDs are local to this video.</span>
+            <div>
+              <a id="export-json" class="disabled" href="#">JSON ↗</a
+              ><a id="export-csv" class="disabled" href="#">CSV ↗</a>
+            </div>
+          </div>
+        </section>
+        <aside class="object-panel panel">
+          <div class="panel-title">
+            <h2>Object details</h2>
+            <span id="object-id" class="mono">—</span>
+          </div>
+          <div id="object-content">
+            <div class="object-placeholder">
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <path d="M25 15H15v10m40-10h10v10M15 55v10h10m40-10v10H55" />
+                <rect x="26" y="26" width="28" height="28" rx="6" />
+              </svg>
+              <p>Select a result or an object in the video.</p>
+            </div>
+          </div>
+          <div class="object-list-heading">
+            <span>OBJECTS IN THIS VIDEO</span
+            ><span id="object-list-count">0</span>
+          </div>
+          <div id="object-list" class="object-list"></div>
+        </aside>
+      </div>
+      <footer>
+        <span>MotionLab / Video Intelligence</span
+        ><span>YOLOX · ByteTrack · SigLIP 2</span>
+      </footer>
+    </main>
+    <div id="toast" role="status" hidden></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

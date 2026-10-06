@@ -1,0 +1,13 @@
+MotionLab uses third-party software and pretrained weights under their respective terms.
+
+YOLOX: Megvii, https://github.com/Megvii-BaseDetection/YOLOX, Apache-2.0.
+The ONNX decoder follows the official release's preprocessing and output conventions.
+ByteTrack implementation: https://github.com/roboflow/trackers, Apache-2.0.
+Supervision: https://github.com/roboflow/supervision, MIT.
+SigLIP 2 weights: https://huggingface.co/google/siglip2-base-patch16-224, Apache-2.0.
+Transformers, ONNX Runtime, PyTorch, OpenCV and FFmpeg retain their own licenses.
+
+The optional example video is downloaded from Roboflow's published Supervision assets:
+https://media.roboflow.com/supervision/video-examples/vehicles.mp4
+It is not included in the source repository or used as an accuracy benchmark.
+No ownership of that footage is claimed. Check media-specific rights before redistribution.
